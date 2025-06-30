@@ -5,6 +5,7 @@ import asyncio
 from config import config
 import datetime
 import os
+from log import logger
 
 
 """
@@ -15,38 +16,35 @@ https://docs.telethon.dev/en/stable/basic/updates.html
 
 class GroupWipeHandlerMessages:
     """
-    Этот класс содержит текст и функции формирования текстовых сообщений.
-    Является родительским классом для <GroupWipeHandler>
-    Не содержит никакой логики использования модуля <telethon>, только работа с текстом
+    This class contains text and functions for generating text messages.
+    It is the parent class for <GroupWipeHandler>.
+    It does not contain any logic related to the <telethon> module, only text processing.
     """
 
     cmd_total_wipe = '/wipe_total'
     cmd_personal_wipe = '/wipe_myself'
     cmd_help = '/help'
-    msg_run_global_wipe = "Запускаю глобальный вайп сообщений в данном групповом чате..."
-    msg_run_personal_wipe = "Запускаю вайп истории сообщений пользователя"
-    msg_permission_denied = "❗️ Необходимы права администатора для выполнения данной процедуры"
-    msg_help = "Для удаления ВСЕХ сообщений отправьте в чат:\n" + \
-               f"<code>{cmd_total_wipe}</code>\n" \
-               f"<i>- запросить глобальную очистку " + \
-               "(требуется 3 запрос(а) от разных пользователей в течении суток)</i>\n\n" + \
-               "Для удаления своих сообщений отправьте в чат:\n" + \
-               f"<code>{cmd_personal_wipe}</code>\n" \
-               f"<i>- очистка сообщений пользователя (далее необходимо повторно отправить " \
-               f"команду для подтверждения, во избежания ложного срабатывания)</i>\n\n" + \
-               "🔄 Через 24 часа все запросы сбрасываются.\n\n" + \
-               "Для получения справки отправьте в чат:\n"  + \
+    msg_run_global_wipe = "❕ Запускаю глабальны вайп УСІХ паведамленняў у гэтай групе. "
+    msg_run_personal_wipe = "❕ Запускаю вайп АСАБІСТАЙ гісторыі паведамленняў удзельніка гэтай групы"
+    msg_permission_denied = "❗️ Неабходны права администатора для выканання дадзенай працэдуры [*права на выдаленне паведамленняў*]"
+    msg_help = "✳️ Для выдалення ЎСІХ паведамленняў адпраўце ў чат:\n" + \
+               f"<code>{cmd_total_wipe}</code>\n" + \
+               f"<i>[патрабуецца {str(config.total_wipe_confirms)} запыт(а) ад розных удзельнікаў групы на працягу 24 гадзін]</i>\n\n" + \
+               "✳️ Для выдалення СВАІХ асабістых паведамленняў адпраўце ў чат:\n" + \
+               f"<code>{cmd_personal_wipe}</code>\n\n" + \
+               "🔄 Праз 24 гадзіны ўсе запыты ад карыстальнікаў скідваюцца.\n\n" + \
+               "✳️ Для атрымання спраўкі адпраўце ў чат:\n" + \
                f"<code>{cmd_help}</code>"
 
-    msg_about_bot = '<b>Приветствую!</b>\n' \
-                    'Этот бот создан для того,что бы экстренно удалить всю историю сообщений ' \
-                    'внутри этого группового чата по запросу участников.\n' + \
-                    'Так же имеется опция удалить все свои сообщения (определённого пользователя) в группе.\n\n' + \
-                    '❕ Для корректной работы необходимо выдать боту права администратора.\n\n' \
-                    '❕ Так же если группа содержит более 100 сообщений, необходимо открыть всю историю сообщений.\n' \
-                    'Для этого необходимо зайти в пункт меню ⚙️ <i>"Управление группой"</i>.\n' + \
-                    'Далее найти опцию ⚙️ <i>"История чата для новых участников"</i> и сменить флаг на <i>"Видна"</i>\n\n'
-    msg_complete = "✅ Готово"
+    msg_about_bot = '<b>Вітанкі!</b>\n' \
+                    'Гэты бот створаны для хуткага выдалення ўсей гісторыі паведамленнаў ' \
+                    'гэтага групавога чата по запыту ўдзельнікаў.\n' + \
+                    'Так сама маецца опцыя выдалення сваіх асабістых паведамленняў у гэтай групе.\n\n' + \
+                    '❕ Для карэктнай працы неабходна выдаць боту правы адміністратара.\n\n' \
+                    '❕ Так сама калі група змяшчае болей 100 паведамленняў, неабходна адчыныць усю гісторыю паведамленняў.\n\n' \
+                    'Для гэтага  неабходна зайсці ў пункт меню ⚙️ <i>"Кіраванне групай"</i>.\n' + \
+                    'Далей знайсци опцыю ⚙️ <i>"Гисторыя чата для новых удзельнікаў"</i> и выставіць  чэкбокс на <i>"Бачна"</i>\n\n'
+    msg_complete = "✅ Зроблена"
 
     @staticmethod
     def _msg_confirm_total_wipe(user_requests, lack_of_requests):
@@ -68,78 +66,92 @@ class GroupWipeHandlerMessages:
 
 class GroupWipeHandler(GroupWipeHandlerMessages):
     """
-    Данный класс подключается в главном модуле при инициализации экземпляра класса TelegramBot.
-    Класс содержит логику взаимодействия с сообщениями в групповых чатах Telegram (удаление сообщений).
-    Наследуется от класса <GroupWipeHandlerMessages>, который содержит текст.
-    Логика взаимодействия с сообщениями осуществляется через отправление пользователями в групповой чат определённых
-    команд (GroupWipeHandlerMessages.cmd_total_wipe, GroupWipeHandlerMessages.cmd_personal_wipe и т.д.).
-    Главный метод async def message_handler отлавливает все сообщения пользователей в групповом чате (через фильтр), и
-    в случае наличия в сообщении одной из команд запускает соответствующий обработчик.
+    This class is integrated into the main module upon initialization of the TelegramBot class instance.
+    It contains the logic for interacting with messages in Telegram group chats (message deletion).
+    It inherits from the <GroupWipeHandlerMessages> class, which handles text content.
+    Message interaction logic is triggered when users send specific commands in the group chat
+    (GroupWipeHandlerMessages.cmd_total_wipe, GroupWipeHandlerMessages.cmd_personal_wipe, etc.).
+    The main method, async def message_handler, monitors all user messages in the group chat (via a filter).
+    If a message contains one of the specified commands, it triggers the corresponding handler.
+    To activate the handler (message deletion), the command must be sent multiple times
+    (the exact count is defined in the config file).
+    This prevents false triggers. The command counter resets after 24 hours.
     """
 
-    # В этом атрибуте хранятся объекты запросов на глобальное удаление сообщений в чатах
+    # This attribute contains the request objects for mass message deletion in chats
     total_wipe_requests = {}  # {chat_id: {user_id: date_time, user_id: date_time, ..}, chat_id: {...}, ...}
 
-    # В этом атрибуте хранятся объекты запросов на персональное удаление сообщений (конкретных пользователе) в чатах
+    # This attribute stores request objects for per-user message deletion in chats
     personal_wipe_requests = {}  # {chat_id: {user_id: [date_time, date_time], user_id: [...], ...}, chat_id: {...} ...}
 
     @classmethod
-    def register(cls, client):
+    def register(cls, client) -> None:
+        """
+        Main method that manages message processing handlers.
+        Connected during <TelegramBot> class initialization
+        through the <_register_handlers> function in <bot.py>.
+        """
 
-        # # Хендлер для добавления в группу
-        @client.on(events.ChatAction())
+        # Handles the workflow when bot is added to a new group
+        @client.on(events.ChatAction())  # Фильтр
         async def chat_action_handler(event):
             if event.user_added and event.is_channel:
+                # Sends a welcome message with bot usage instructions to the chat
                 await event.respond(cls.msg_about_bot + cls.msg_help, parse_mode='html')
 
-        @client.on(events.NewMessage(func=lambda e: e.is_group))
+        #  Message handler for group chats. Processes all group messages and looks for commands
+        #  (GroupWipeHandlerMessages.cmd_total_wipe, GroupWipeHandlerMessages.cmd_personal_wipe, etc.)
+        @client.on(events.NewMessage(func=lambda e: e.is_group))  # Filter
         async def _message_handler(event):
-            event_text_split: list = event.text.split()
-            if not event.text:  # Если входящая мессага пустая
+            event_text_split: list = event.text.split()  # Extract and split message content
+            if not event.text:  # If the message object contains no letters
                 return
+            # Check if the full group wipe command exists in <event_text_split>
             if cls.cmd_total_wipe in event_text_split:
-                # Проверяет наличие админских прав у бота в текущем групповом чате
+                # Checks if bot has admin rights in this group
                 if not await cls._is_bot_admin(event):
-                    # Уведомление о том, что необходимы права администратора
+                    # Sends a message that the bot requires admin privileges
                     await event.respond(cls.msg_permission_denied)
                     return
-                # Проверяет наличие достаточного количества запросов от пользователей для инициализации удаления
+                # Checks if enough user requests accumulated for message purge
+                # Threshold configurable in settings
                 confirm: bool = await cls._confirm_total_wipe(event)
                 if confirm:
-                    # Удаляет все сообщения ВСЕХ пользователей внутри группового чата
+                    # # Deletes ALL messages from ALL users in the group chat
                     await cls._total_wipe_messages(event)
                     return
                 else:
                     return
-
+            # The command to delete a USER'S message history within the group is contained in <event_text_split>
             elif cls.cmd_personal_wipe in event_text_split:
-                # Проверяет наличие админских прав у бота в текущем групповом чате
+                # Checks if bot has admin rights in this group
                 if not await cls._is_bot_admin(event):
-                    # Уведомление о том, что необходимы права администратора
+                    # Sends a message that the bot requires admin privileges
                     await event.respond(cls.msg_permission_denied)
                     return
-                # Проверяет наличие достаточного количества запросов от пользователей для инициализации удаления
+                # Verifies if enough user requests exist to trigger message deletion
+                # (Multiple confirmations required to prevent false positives; threshold set in config)
                 confirm: bool = await cls._confirm_personal_wipe(event)
                 if confirm:
-                    # Удаляет все сообщения ОПРЕДЕЛЁННОГО пользователя внутри группового чата
+                    # Deletes all messages from a specific group member (who initiated the deletion command)
                     await cls._personal_wipe_messages(event)
                     return
                 else:
                     return
-
+            # If the help command is present in <event_text_split>
             elif cls.cmd_help in event_text_split:
+                # Send help message
                 await event.respond(cls.msg_help, parse_mode='html')
                 return
-
             else:
                 return
-
 
     @classmethod
     async def _is_bot_admin(cls, event) -> bool:
         """
-        Проверяет, является ли бот администратором группы с правами удаления сообщений
+        Verifies whether the bot is a group administrator with message deletion privileges.
         """
+
         try:
             # Getting information about yourself <https://docs.telethon.dev/en/stable/basic/quick-start.html>
             me = await event.client.get_me()
@@ -147,64 +159,76 @@ class GroupWipeHandler(GroupWipeHandlerMessages):
             # Getting information about chat
             chat = await event.get_chat()
 
-            # Для супергрупп/каналов
+            # For supergroups/channels
             if hasattr(chat, 'admin_rights'):
-                # Проверяем права бота
+                # Verify bot's access rights
                 if chat.admin_rights and chat.admin_rights.delete_messages:
                     return True
-            # Получаем полную информацию о правах
+            # Retrieve full permission details
             try:
                 permissions = await event.client.get_permissions(chat.id, me.id)
 
-                # Проверяем права администратора
+                # Validate admin permissions
                 if isinstance(permissions.participant, (ChannelParticipantAdmin, ChannelParticipantCreator)):
-                    # Проверяем конкретное право на удаление сообщений
+                    # Verify the right to delete messages
                     if isinstance(permissions.participant, ChannelParticipantCreator):
-                        return True  # Создатель имеет все права
-
+                        return True
                     if isinstance(permissions.participant, ChannelParticipantAdmin):
                         return permissions.participant.admin_rights.delete_messages
-            except ChatAdminRequiredError:
+            except ChatAdminRequiredError as e:
+                logger.error(
+                    f"ChatAdminRequiredError: {str(e)}\n",
+                    exc_info=True)
                 pass
-
             return False
 
         except Exception as e:
-            print(f"Ошибка при проверке прав администратора: {e}")
+            logger.error(
+                f"Failed to verify administrator rights: {str(e)}\n",
+                exc_info=True)
             return False
 
     @classmethod
     async def _confirm_total_wipe(cls, event) -> bool:
+        """
+        Determines if all necessary conditions exist to perform a global wipe.
+        """
 
+        # # Records current time for comparison with datetime objects in <total_wipe_requests>
         datetime_now = datetime.datetime.now()
+        # Retrieves chat id info and message sender's user id
         sender = await event.get_sender()
         chat_id = event.chat_id
         user_id = sender.id
 
+        # If command sender's ID is already recorded in <cls.total_wipe_requests>
+        # -> iterating to objects
         if cls.total_wipe_requests.get(chat_id, None):
-            # Если ключ с chat_id уже существует в  cls.total_wipe_requests -> обойти содержимое
             for key, value in cls.total_wipe_requests[chat_id].items():
-                # key - user_id, value - datetime
+                # key - user_id, value - datetime.now object
                 time_difference = abs(datetime_now - value)
-                # Если дельта времени хотя бу у одного элементы более суток - очищаем словарь
+                # Clear dict if any item ->24h old (daily counter reset)
                 if not time_difference < datetime.timedelta(days=1):
                     cls.total_wipe_requests[chat_id].clear()
                     break
-
+            # Adds {user_id: datetime_now} pair to <total_wipe_requests>
             cls.total_wipe_requests[chat_id][user_id] = datetime_now
+            # If the required number of wipe requests from users has been reached
             if len(cls.total_wipe_requests[chat_id].keys()) >= config.total_wipe_confirms:
-                # Если достигнуто необходимое количество запросов участников на вайп для данного чата
-                # очищаем словарь и возвращаем разрешение True (разрешение на запуск вайпа)
+                # Clear dict and return True
                 cls.total_wipe_requests[chat_id].clear()
                 await event.respond(cls.msg_run_global_wipe)
                 return True
             else:
+                # Sends notification to group chat about insufficient wipe requests
                 await event.respond(cls._msg_confirm_total_wipe(
                     len((cls.total_wipe_requests[chat_id].keys())),
                     config.total_wipe_confirms - len(cls.total_wipe_requests[chat_id].keys()))
                 )
                 return False
         else:
+            # When the user ID isn't found in <cls.total_wipe_requests> keys
+            # -> create new tracking record in the dictionary
             cls.total_wipe_requests[chat_id] = {}
             cls.total_wipe_requests[chat_id][user_id] = datetime_now
 
@@ -216,47 +240,51 @@ class GroupWipeHandler(GroupWipeHandlerMessages):
 
     @classmethod
     async def _total_wipe_messages(cls, event):
-        """Метод для полной очистки чата"""
+        """Method for complete group chat message purge."""
 
         try:
-            count = 0
-            async for message in event.client.iter_messages(event.chat_id):
+            # Async iterator for message traversal in specified chat
+            async for message in event.client.iter_messages(event.chat_id):  # All messages in chat
                 try:
                     await message.delete()
-                    count += 1
-                    if count % 10 == 0:  # Отчет каждые 10 сообщений
-                        print(f"Удалено {count} сообщений")
+                    # Anti-spam delay to prevent Telegram API restrictions
                     await asyncio.sleep(0.5)
                 except Exception as e:
-                    print(f"Ошибка при удалении сообщения: {e}")
+                    logger.error(
+                        f"Error while deleting message: {str(e)}\n",
+                        exc_info=True)
                     continue
-
+            # Posts a message with image attachment when message iteration finishes
             await event.reply(
                 cls.msg_complete,
                 file=os.path.join('files', 'pepe.png')
             )
         except Exception as e:
-            print(f"Критическая ошибка: {e}")
-            await event.respond("❌ Произошла ошибка при очистке чата")
+            logger.error(
+                f"Critical error: {str(e)}\n",
+                exc_info=True)
+            await event.respond("❌ Памылка выдалення")
 
     @classmethod
     async def _confirm_personal_wipe(cls, event) -> bool:
+        """
+        Determines if all necessary conditions exist to perform to wipe user's messages in chat.
+        """
 
+        # Records current time for comparison with datetime objects in <total_wipe_requests>
         datetime_now = datetime.datetime.now()
         sender = await event.get_sender()
         chat_id = event.chat_id
         user_id = sender.id
-        first_name = sender.first_name  # Имя (обязательное поле)
-        last_name = getattr(sender, 'last_name', None)  # Фамилия (может отсутствовать)
-        # Полное имя (комбинация имени и фамилии)
+        first_name = sender.first_name
+        last_name = getattr(sender, 'last_name', None)
         full_name = f"{first_name} {last_name}" if last_name else first_name
 
         if cls.personal_wipe_requests.get(chat_id, None):
-            # Если ключ с chat_id уже существует в  cls.personal_wipe_requests -> обойти содержимое: list[datetime, ...]
+            # If chat_id exist in  cls.personal_wipe_requests -> iterate to list[datetime, ...]
             if cls.personal_wipe_requests[chat_id].get(user_id, None):
                 if len(cls.personal_wipe_requests[chat_id][user_id]) > 0:
                     for datetime_item in cls.personal_wipe_requests[chat_id][user_id]:
-                        # Проверяем дату_время каждого запроса (должен быть не старше суток)
                         time_difference = abs(datetime_now - datetime_item)
                         if not time_difference < datetime.timedelta(days=1):
                             cls.personal_wipe_requests[chat_id][user_id].clear()
@@ -297,27 +325,27 @@ class GroupWipeHandler(GroupWipeHandlerMessages):
     @classmethod
     async def _personal_wipe_messages(cls, event):
         """
-        Удаляет все сообщения указанного пользователя в текущем чате
+        Clears all user's messages in chat
         """
+
         sender = await event.get_sender()
         user_id = sender.id
         try:
-            # Получаем сообщения только от конкретного пользователя
             async for message in event.client.iter_messages(
                     event.chat_id,
                     from_user=user_id
             ):
                 try:
                     await message.delete()
-                    await asyncio.sleep(0.5)  # Увеличиваем задержку для безопасности
+                    await asyncio.sleep(0.5)
                 except Exception as e:
-                    print(f"Ошибка при удалении сообщения {message.id}: {e}")
+                    logger.error(
+                        f"Error while deleting message: {str(e)}\n",
+                        exc_info=True)
                     continue
 
-            # Получаем информацию о пользователе для красивого отчета
-            first_name = sender.first_name  # Имя (обязательное поле)
-            last_name = getattr(sender, 'last_name', None)  # Фамилия (может отсутствовать)
-            # Полное имя (комбинация имени и фамилии)
+            first_name = sender.first_name
+            last_name = getattr(sender, 'last_name', None)
             full_name = f"{first_name} {last_name}" if last_name else first_name
 
             await event.reply(
@@ -326,5 +354,7 @@ class GroupWipeHandler(GroupWipeHandlerMessages):
             )
 
         except Exception as e:
-            print(f"An error occurred while deleting user messages {user_id}: {e}")
+            logger.error(
+                f"An error occurred while deleting user messages {user_id}: {e}\n",
+                exc_info=True)
             await event.respond(f"An error occurred while deleting user messages {user_id}")
