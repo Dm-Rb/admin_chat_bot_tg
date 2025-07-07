@@ -1,7 +1,7 @@
 from telethon import TelegramClient
 from config import config
 from admin_handler import GroupWipeHandler
-
+from pathlib import Path
 
 """
 telethon documentation
@@ -16,6 +16,8 @@ class TelegramBot:
         self.phone = config.phone_number
         self.client = TelegramClient('session_name', self.api_id, self.api_hash)
         self._register_handlers()
+        # Folder for files
+        Path(config.folder_4_json).mkdir(parents=True, exist_ok=True)
 
     def _register_handlers(self):
         handlers = [

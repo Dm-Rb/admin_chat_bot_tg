@@ -1,11 +1,13 @@
 from telethon import events
 from telethon.tl.types import ChannelParticipantAdmin, ChannelParticipantCreator
-from telethon.errors import ChatAdminRequiredError
+from telethon.errors import ChatAdminRequiredError, MessageDeleteForbiddenError, MessageIdsEmptyError
 import asyncio
 from config import config
 import datetime
 import os
 from log import logger
+import json
+
 
 
 """
@@ -24,6 +26,7 @@ class GroupWipeHandlerMessages:
     cmd_total_wipe = '/wipe_total'
     cmd_personal_wipe = '/wipe_myself'
     cmd_help = '/help'
+    cmd_import_history = '/import_history'
     msg_run_global_wipe = "❕ Запускаю глабальны вайп УСІХ паведамленняў у гэтай групе. "
     msg_run_personal_wipe = "❕ Запускаю вайп АСАБІСТАЙ гісторыі паведамленняў удзельніка гэтай групы"
     msg_permission_denied = "❗️ Неабходны права администатора для выканання дадзенай працэдуры [*права на выдаленне паведамленняў*]"
@@ -44,8 +47,17 @@ class GroupWipeHandlerMessages:
                     '❕ Так сама калі група змяшчае болей 100 паведамленняў, неабходна адчыныць усю гісторыю паведамленняў.\n\n' \
                     'Для гэтага  неабходна зайсці ў пункт меню ⚙️ <i>"Кіраванне групай"</i>.\n' + \
                     'Далей знайсци опцыю ⚙️ <i>"Гисторыя чата для новых удзельнікаў"</i> и выставіць  чэкбокс на <i>"Бачна"</i>\n\n'
+    msg_import_history = 'Адпраўце боту файл <b>result.json</b>, які змяшчае гісторыю паведамленняў гэтага группавога чата.\n' \
+                         'Для атрымання файла <b>result.json</b> націсніце на тры кропкі ў верхнем правым вуглу.\n<b>1.</b> Далей абярыце ' \
+                         '⚙️ <i>Экспартаваць гісторыю"</i>.\n<b>2.</b> У адчыніўшымся акне знайдзіце поле <i>Фармат</i> і націсніце ' \
+                         'на <i>HTML</i>, што побач.\n<b>3.</b> Змяніце фармат з <i>HTML</i> на <i>JSON</i> і захавайце змены.\n<b>4.</b> Націсніце на кнопку' \
+                         ' 👉🏻 <i>"Імпартаваць"</i>. Тэлеграм сфарміруе файл і пачне спампоўваць яго на вашу прыладу.\n' \
+                         '<b>5.</b> Пасля заканчэння спампоўкі націсніце на кнопку 👉🏻 <i>"Паказаць даныя"</i>. Вас пераадрасуе па шляху ' \
+                         'захавання файла <b>result.json</b>.<b>\n6.</b> Адпраўце гэты файл сюды ў чат 📤' \
 
     msg_complete = "✅ Зроблена"
+
+    msg_import_history_complete = "Імпартр гісторыі паведамленняў выкананы"
 
     @staticmethod
     def _msg_confirm_total_wipe(user_requests, lack_of_requests):
@@ -144,8 +156,34 @@ class GroupWipeHandler(GroupWipeHandlerMessages):
                 # Send help message
                 await event.respond(cls.msg_help, parse_mode='html')
                 return
+            elif cls.cmd_import_history in event_text_split:
+                # Send message
+                photos = [os.path.join('images', i)for i in ('1.png', '2.png', '3.png', '4.png', '5.png', '6.png')]
+                await client.send_file(
+                    event.chat_id,
+                    photos,
+                    caption=cls.msg_import_history,
+                    as_album=True,
+                    parse_mode='HTML'
+                )
+                return
             else:
                 return
+
+        @client.on(events.NewMessage(
+            func=lambda e: e.is_group and cls.is_json_file(e)
+        )
+        )
+        async def json_file_handler(event):
+            file_bytes = await event.download_media(file=bytes)
+            try:
+                data = json.loads(file_bytes.decode('utf-8'))
+            except Exception as ex_:
+                return
+            if not cls.validate_json_structure(data, event.chat_id):
+                return
+            await event.download_media(file=os.path.join(config.folder_4_json, f"{event.chat_id}.json"))
+            await event.reply(cls.msg_import_history_complete)
 
     @classmethod
     async def _is_bot_admin(cls, event) -> bool:
@@ -240,31 +278,66 @@ class GroupWipeHandler(GroupWipeHandlerMessages):
             return False
 
     @classmethod
+    async def _delete_batch_messages(cls, event, message_ids: list[int]):
+        from telethon.tl.functions.messages import DeleteMessagesRequest
+        if len(message_ids) > 100:
+            logger.error("It's impossible to delete more than 100 messages at a time")
+            await event.respond('Delete error')
+            return
+
+        # try:
+        chat_id = event.chat_id if str(event.chat_id).startswith('-100') else f'-100{abs(event.chat_id)}'
+            # print(chat_id)
+        await event.client(DeleteMessagesRequest(
+            id=message_ids,
+            revoke=True  # Удалить у всех (если есть права)
+        ))
+
+        await event.client.delete_messages(int(chat_id), message_ids, revoke=True)
+        # except Exception as e:
+        #     await event.respond('Delete error')
+        #     logger.error(f"Delete error: {str(e)}")
+
+    @classmethod
     async def _total_wipe_messages(cls, event):
         """Method for complete group chat message purge."""
+        execution_status: list[bool] = []
+        try:
+            if os.path.exists(os.path.join(config.folder_4_json, f"{event.chat_id}.json")):
+                with open(os.path.join(config.folder_4_json, f"{event.chat_id}.json"), 'r', encoding='utf-8') as f:
+                    exported_messages = json.load(f)
+                step = 100
+                for i in range(0, len(exported_messages['messages']), step):
+                    chunk_message_ids = [i['id'] for i in exported_messages['messages'][i:i + step]]
+                    await cls._delete_batch_messages(event, chunk_message_ids)
+                    await asyncio.sleep(0.5)
+                execution_status.append(True)
+                # os.remove(os.path.join(config.folder_4_json, f"{event.chat_id}.json"))
+        except Exception as ex_:
+            execution_status.append(False)
+            logger.error(f"Error when trying to remove messages from the export file: {str(ex_)}", exc_info=True)
 
         try:
-            # Async iterator for message traversal in specified chat
-            async for message in event.client.iter_messages(event.chat_id):  # All messages in chat
-                try:
-                    await message.delete()
-                    # Anti-spam delay to prevent Telegram API restrictions
-                    await asyncio.sleep(0.5)
-                except Exception as e:
-                    logger.error(
-                        f"Error while deleting message: {str(e)}\n",
-                        exc_info=True)
-                    continue
-            # Posts a message with image attachment when message iteration finishes
-            await event.reply(
-                cls.msg_complete,
-                file=os.path.join('files', 'pepe.png')
-            )
-        except Exception as e:
-            logger.error(
-                f"Critical error: {str(e)}\n",
-                exc_info=True)
-            await event.respond("❌ Памылка выдалення")
+            message_ids = []
+            async for message in event.client.iter_messages(event.chat_id, limit=None):  # None = all messages
+                message_ids.append(message.id)
+            step = 100
+            for i in range(0, len(message_ids), step):
+                chunk_message_ids = message_ids[i:i + step]
+                await cls._delete_batch_messages(event, chunk_message_ids)
+                await asyncio.sleep(0.5)
+            execution_status.append(True)
+        except Exception as ex_:
+            execution_status.append(False)
+            logger.error(f"Error when trying to remove messages: {str(ex_)}", exc_info=True)
+
+        # if any(execution_status):
+        #     await event.reply(
+        #         cls.msg_complete,
+        #         file=os.path.join('images', 'pepe.png')
+        #     )
+        # else:
+        #     await event.respond('❌ Failed to delete messages ❌')
 
     @classmethod
     async def _confirm_personal_wipe(cls, event) -> bool:
@@ -351,7 +424,7 @@ class GroupWipeHandler(GroupWipeHandlerMessages):
 
             await event.reply(
                 f"{cls.msg_complete}, {full_name}",
-                file=os.path.join('files', 'pepe.png')
+                file=os.path.join('images', 'pepe.png')
             )
 
         except Exception as e:
@@ -359,3 +432,33 @@ class GroupWipeHandler(GroupWipeHandlerMessages):
                 f"An error occurred while deleting user messages {user_id}: {e}\n",
                 exc_info=True)
             await event.respond(f"An error occurred while deleting user messages {user_id}")
+
+    @staticmethod
+    def is_json_file(event):
+        """filter for json file"""
+        if not event.message.document:
+            return False
+
+        doc = event.message.document
+        return (
+                doc.mime_type == 'application/json' or
+                (doc.file_name and doc.file_name.endswith('.json'))
+        )
+
+    @staticmethod
+    def validate_json_structure(json_data, current_chat_id):
+        try:
+            if not json_data.get('name', None):
+                return False
+            if len(json_data.get('messages', list())) == 0:
+                return False
+            if json_data.get('id', None):
+                if str(json_data['id']) in str(current_chat_id):
+                    return True
+            else:
+                return False
+        except Exception:
+            return False
+
+
+
