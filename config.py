@@ -12,6 +12,7 @@ class Config:
     total_wipe_confirms = int(os.getenv("TOTAL_WIPE_CONFIRMS"))
     personal_wipe_confirms = int(os.getenv("PERSONAL_WIPE_CONFIRMS"))
     folder_4_json = 'export_json_files'
+    ai_token = os.getenv("AI_TOKEN")
 
 
 config = Config()
