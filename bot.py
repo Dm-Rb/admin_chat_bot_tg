@@ -1,7 +1,8 @@
 from telethon import TelegramClient
 from config import config
-from admin_handler import GroupWipeHandler
 from pathlib import Path
+from ai_chat_bot import AiChatHandler
+
 
 """
 telethon documentation
@@ -15,20 +16,31 @@ class TelegramBot:
         self.api_hash = config.api_hash
         self.phone = config.phone_number
         self.client = TelegramClient('session_name', self.api_id, self.api_hash)
+        self.my_id = None
+        self.handlers = [
+            AiChatHandler
+        ]
         self._register_handlers()
         # Folder for files
-        Path(config.folder_4_json).mkdir(parents=True, exist_ok=True)
+        # Path(config.folder_4_json).mkdir(parents=True, exist_ok=True)
 
     def _register_handlers(self):
-        handlers = [
-            GroupWipeHandler
-        ]
 
-        for handler in handlers:
+        for handler in self.handlers:
             handler.register(self.client)
+
+    def _set_attr_handlers(self):
+        for handler in self.handlers:
+            if hasattr(handler, 'my_tg_id'):
+                handler.my_tg_id = self.my_id
 
     async def start(self):
         await self.client.start(phone=self.phone)
+
+        me = await self.client.get_me()
+        self.my_id = me.id
+        self._set_attr_handlers()
+
         await self.client.run_until_disconnected()
 
 
