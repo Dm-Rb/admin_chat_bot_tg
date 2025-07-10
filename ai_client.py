@@ -10,7 +10,8 @@ class DeepSeekAPIClient:
 
     def __init__(self, token):
         self.API_BASE_URL = 'https://api.deepseek.com'
-        self.API_ENDPOINT = '/chat/completions'  # Эндпоинт отдельно
+        self.API_ENDPOINT = '/chat/completions'
+        self.API_BALANCE = '/user/balance'
         self.headers = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {str(token)}"
@@ -18,13 +19,12 @@ class DeepSeekAPIClient:
         self._session = None
 
     async def get_session(self) -> aiohttp.ClientSession:
-        """Ленивая инициализация сессии"""
+        """Lazy initialization of session"""
         if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession(base_url=self.API_BASE_URL)  # Используем только базовый URL
+            self._session = aiohttp.ClientSession(base_url=self.API_BASE_URL)  # ! ONLY API_BASE_URL
         return self._session
 
     async def close(self):
-        """Явное закрытие сессии"""
         if self._session and not self._session.closed:
             await self._session.close()
 
@@ -60,5 +60,20 @@ class DeepSeekAPIClient:
                 f"f.request_post error: {e}\n",
                 exc_info=True)
             raise e
+
+    async def request_get_balance(self):
+        session = await self.get_session()
+        try:
+            async with session.get(self.API_BALANCE, headers=self.headers) as resp:
+                resp.raise_for_status()  # Проверяем статус ответа
+                response_json = await resp.json()
+                for item in response_json['balance_infos']:
+                    return f"{item['total_balance']} {item['currency']}"
+        except Exception as e:
+            logger.error(
+                f"f.request_post error: {e}\n",
+                exc_info=True)
+            raise e
+
 
 deep_seek = DeepSeekAPIClient(config.ai_token)

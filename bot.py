@@ -17,6 +17,8 @@ class TelegramBot:
         self.phone = config.phone_number
         self.client = TelegramClient('session_name', self.api_id, self.api_hash)
         self.my_id = None
+        self.my_username = None
+        self.my_first_name = None
         self.handlers = [
             AiChatHandler
         ]
@@ -33,12 +35,19 @@ class TelegramBot:
         for handler in self.handlers:
             if hasattr(handler, 'my_tg_id'):
                 handler.my_tg_id = self.my_id
+            if hasattr(handler, 'my_tg_username'):
+                handler.my_tg_username = self.my_username
+            if hasattr(handler, 'my_tg_first_name'):
+                handler.my_tg_first_name = self.my_first_name
 
     async def start(self):
         await self.client.start(phone=self.phone)
-
+        # Get info about tg account
         me = await self.client.get_me()
         self.my_id = me.id
+        self.my_username = me.username
+        self.my_first_name = me.first_name
+        # Set info into handlers
         self._set_attr_handlers()
 
         await self.client.run_until_disconnected()
