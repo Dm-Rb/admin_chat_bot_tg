@@ -9,13 +9,13 @@ def setup_logging():
     # Format
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-    # Ротация логов (не более 5 файлов по 2MB каждый)
+    # Log rotation (maximum 5 files, 2MB each)
     file_handler = RotatingFileHandler(
         'app.log', maxBytes=2 * 1024 * 1024, backupCount=5
     )
     file_handler.setFormatter(formatter)
 
-    # Вывод в консоль
+    # output to console
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
 
