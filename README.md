@@ -9,9 +9,9 @@ Screenshot:
 
 
 ````
-API_ID=
-API_HASH=
-PHONE=
-AI_TOKEN=
-AI_TEMPERATURE=
+API_ID=telegram-id
+API_HASH=telegram-hash
+PHONE=your-phone-number
+AI_TOKEN=deepseek-token
+AI_TEMPERATURE=1
 ````
