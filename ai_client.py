@@ -64,7 +64,7 @@ class DeepSeekAPIClient:
         session = await self.get_session()
         try:
             async with session.get(self.API_BALANCE, headers=self.headers) as resp:
-                resp.raise_for_status()  # Проверяем статус ответа
+                resp.raise_for_status()
                 response_json = await resp.json()
                 for item in response_json['balance_infos']:
                     return f"{item['total_balance']} {item['currency']}"
