@@ -19,6 +19,7 @@ class AiChatHandler(States):
     cmd_set_role = "/set_role"
     cmd_get_balance = "/get_balance"
     cmd_wipe_history = "/wipe_history"
+    cmd_set_default_role = "/set_default_role"
     prefix = "O, kurwa"
 
     @classmethod
@@ -82,6 +83,13 @@ class AiChatHandler(States):
                     return await event.respond("👌🏻")
             except Exception as _ex:
                 return await event.respond(cls.prefix + f"‼️ <set_role_command> Error: {_ex}")
+
+        @client.on(events.NewMessage(pattern=cls.cmd_set_default_role))
+        async def cmd_set_default_role(event):
+            default_role = f'{f"Твае імя - {cls.my_tg_first_name}. " if cls.my_tg_first_name else ""}' + \
+                           f'Ты карысны памочнік. У адказах заўсёды карыстайся беларускай мовай'
+            cls.roles[event.chat_id] = default_role
+            return await event.respond("👌🏻")
 
     @classmethod
     async def message_handler(cls, event, client) -> None:
