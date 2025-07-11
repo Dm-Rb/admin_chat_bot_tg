@@ -6,6 +6,8 @@ Screenshot:
 
 
 <b>.env file content:</b>
+
+
 ````
 API_ID=
 API_HASH=
