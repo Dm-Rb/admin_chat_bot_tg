@@ -15,3 +15,8 @@ PHONE=your-phone-number
 AI_TOKEN=deepseek-token
 AI_TEMPERATURE=1
 ````
+telegram-id and telegram-hash
+https://my.telegram.org/auth?to=apps
+
+deepseek-token
+https://platform.deepseek.com/usage
