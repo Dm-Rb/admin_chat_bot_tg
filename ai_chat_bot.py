@@ -64,7 +64,7 @@ class AiChatHandler(States):
 
         # Handler for command <cmd_get_balance> in any chat
         @client.on(events.NewMessage(pattern=cls.cmd_get_balance))
-        async def set_role_command(event):
+        async def cmd_get_balance(event):
             try:
                 balance = await deep_seek.request_get_balance()
                 return await event.respond(balance)
@@ -73,7 +73,7 @@ class AiChatHandler(States):
 
         # Handler for command <cmd_wipe_history> in any chat
         @client.on(events.NewMessage(pattern=cls.cmd_wipe_history))
-        async def set_role_command(event):
+        async def cmd_wipe_history(event):
             try:
                 r = await cls.wipe_chat_history(event)
                 if r:
