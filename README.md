@@ -4,9 +4,11 @@ Screenshot:
 
 <img width="678" height="763" alt="изображение" src="https://github.com/user-attachments/assets/77c72b29-bfb1-47c5-ab8c-33bd3ffd9716" />
 
+
 main moodule for run -> bot.py
 
 You need to create an .env file in the root of the project
+
 <b>.env file content:</b>
 
 
