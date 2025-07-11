@@ -85,10 +85,12 @@ class AiChatHandler(States):
 
     @classmethod
     async def message_handler(cls, event, client) -> None:
+        """"Collects the user's message history for AI from tg chat, makes an AI request, and outputs the response"""
 
+        # If the bot sent a message to itself in the chat (excluding cases where it’s responding to a user request)
         if int(event.sender_id) == cls.my_tg_id:
             return
-
+        # If the user sent image or document
         if event.message.media is not None:
             return await event.respond("❕ The DeepSeek API does not support file uploads at this time.")
 

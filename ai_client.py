@@ -6,7 +6,6 @@ from log import logger
 class DeepSeekAPIClient:
 
     LIMIT_HISTORY = 40
-    temperature = 0.70
 
     def __init__(self, token):
         self.API_BASE_URL = 'https://api.deepseek.com'
@@ -42,11 +41,11 @@ class DeepSeekAPIClient:
                 )
             body_ = {
                 "model": "deepseek-chat",
-                "temperature": self.temperature,
+                "temperature": config.ai_temperature,
                 "messages": messages_history,
                 "stream": False
             }
-            # url Только эндпоинт (сессия добавит base_url)
+            # url Only endpoint (session add base_url)
             async with session.post(self.API_ENDPOINT, json=body_, headers=self.headers) as resp:
                 resp.raise_for_status()  # Проверяем статус ответа
                 response_json = await resp.json()
