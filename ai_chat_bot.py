@@ -11,7 +11,7 @@ class States:
 
 class AiChatHandler(States):
 
-    LIMIT_HISTORY = 40
+    LIMIT_HISTORY = 20
     my_tg_id = None
     my_tg_username = None
     my_tg_first_name = None
@@ -49,7 +49,7 @@ class AiChatHandler(States):
             return await event.respond("Send a text description of the AI role to the chat 👇🏻")
 
         # Handler for state <States.waiting_role_state> in any chat
-        @client.on(events.NewMessage(func=lambda e: not cls.is_not_cmd(e.text)))
+        @client.on(events.NewMessage(func=lambda e: cls.is_not_cmd(e.text)))
         @fsm_obj.handler(cls.waiting_role_state)
         async def install_new_role_2_model(event):
             user_id_from_fsm = fsm_obj.get_data(event.chat_id)  # Get sender id from fsm
