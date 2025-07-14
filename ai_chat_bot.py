@@ -175,7 +175,7 @@ class AiChatHandler(States):
     @classmethod
     def is_not_cmd(cls, message_text) -> bool:
         # True - if message_text is not command
-        cmd_list = [cls.cmd_set_role, cls.cmd_get_balance, cls.cmd_wipe_history]
+        cmd_list = [cls.cmd_set_role, cls.cmd_get_balance, cls.cmd_wipe_history, cls.cmd_set_default_role]
         return not any(message_text.startswith(cmd) for cmd in cmd_list)
 
     @classmethod
