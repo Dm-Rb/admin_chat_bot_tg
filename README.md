@@ -20,7 +20,9 @@ PHONE=your-phone-number
 AI_TOKEN=deepseek-token
 AI_TEMPERATURE=1
 ````
+
 Need a Telegram user account (not a bot)
+
 telegram-id and telegram-hash
 https://my.telegram.org/auth?to=apps
 
